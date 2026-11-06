@@ -472,20 +472,170 @@ Chain default for `CATEGORIZER=chain`: rules -> ml -> llm -> fallback `Other`.
 
 ## 8. Git workflow (PW#1, LC10)
 
-The repository history is **checked per person**: who made which branch, which commits, which PRs.
+The repository history is **checked per person**: who created which branch, which commits, which PRs and reviews. Everyone follows the **same flow** below, so the history looks consistent and every member's work is visible.
 
-1. **One issue per task** (use the task names in section 7). Assign it to yourself.
-2. **Branch from the latest `main`:** `git switch main && git pull && git switch -c feat/your-task`.
-3. **Commit small and often.** Message format (Conventional Commits): `feat: add expense parser`, `fix: reject zero amount`, `test: cover budget boundaries`, `docs: add runbook`, `ci: cache uv`, `refactor: extract month helper`. Imperative, under 72 characters.
-4. **Push your branch** and open a **Pull Request** into `main` early (draft is fine). Use the PR template: what, why, how to test, linked issue.
-5. **Review:** at least **1 approval from another member** before merge. Reviewers check: contracts followed, tests present, no secrets, no files outside the author's area.
-6. **Merge method: "Create a merge commit" or "Rebase and merge"** so that each person's individual commits stay in history. Do not squash. Delete the branch after merge.
-7. **Never push directly to `main` and never force-push `main`.** (Settings -> Branches -> protection: require PR, 1 approval, and passing CI.)
-8. **Keep your branch current:** `git fetch && git rebase origin/main` (or merge `main` into your branch). Resolve conflicts locally.
-9. **Minimum per member for grading evidence:** at least 2 merged PRs, at least 8 meaningful commits, at least 2 PR reviews done.
-10. **Never commit:** `.env`, `.venv`, `*.db`, secrets, model binaries over 5 MB.
+### 8.1 One-time setup (each member)
 
-`git config user.name` and `user.email` must match your GitHub account so commits are attributed to you.
+```bash
+git clone https://github.com/Ferhadb/SoftwareFinalProject.git
+cd SoftwareFinalProject
+git config user.name "Your Name"            # must match your GitHub profile
+git config user.email "you@example.com"     # must be an email on your GitHub account
+uv sync                                     # installs everything from pyproject/uv.lock
+uv run pytest                               # should pass before you start
+```
+
+Accept the repository invitation (email or github.com/notifications) or you cannot push.
+
+### 8.2 The flow for every task (do this every time)
+
+```
+ issue -> branch -> code + tests -> commit (small) -> push -> Pull Request -> review -> merge -> delete branch
+```
+
+**Step 1: Pick your issue.** Open your assigned issue on GitHub (Issues tab). It names the branch you must use, e.g. `feat/auth`, and the section of this document to read. Do not start work that has no issue.
+
+**Step 2: Switch to a new branch created from the latest `main`.** *You* create the branch on your machine, so GitHub records you as its creator. Never ask someone else to create it for you.
+
+```bash
+git switch main          # go to main
+git pull                 # get the latest main
+git switch -c feat/auth  # create your branch (name from your issue) and switch to it
+```
+
+Check where you are at any time with `git branch --show-current`. To go back to a branch you already made: `git switch feat/auth`.
+
+**Step 3: Write code and tests.** Work only in your own area (section 1). Tests go in `tests/`, mirroring `app/`. Run the checks as you go:
+
+```bash
+uv run pytest                      # all tests must pass
+uv run ruff format app tests       # format ONLY these folders (never "ruff format ." because it rewrites the docs)
+uv run ruff check app tests        # must say "All checks passed!"
+```
+
+**Step 4: Commit small and often.** One logical change per commit (e.g. the parser, then its tests, then the endpoint), not one giant commit at the end. Stage **specific files**, not everything:
+
+```bash
+git status                                   # see what changed
+git add app/expenses/parser.py tests/expenses/test_parser.py
+git commit -m "feat: add expense text parser"
+```
+
+Avoid `git add -A` or `git add .` unless `git status` shows only files you intend to commit. Never commit `.env`, `.venv`, `*.db`, `.coverage`, secrets, or files outside your area.
+
+Commit message format (Conventional Commits): `type: short imperative summary`, at most 72 characters, no full stop.
+
+| type | use for | example |
+|---|---|---|
+| `feat` | new behaviour | `feat: add budget status endpoint` |
+| `fix` | bug fix | `fix: reject zero amount` |
+| `test` | tests only | `test: cover budget level boundaries` |
+| `docs` | documentation | `docs: add rollback runbook` |
+| `refactor` | no behaviour change | `refactor: extract month helper` |
+| `ci` / `build` / `chore` | pipeline, dependencies, housekeeping | `ci: cache uv`, `build: add bcrypt` |
+
+**Step 5: Push your branch.** The first time, set the upstream; afterwards a plain `git push` is enough:
+
+```bash
+git push -u origin feat/auth     # first push of this branch
+git push                         # later pushes
+```
+
+Push at least once a day so teammates and the git history see progress.
+
+**Step 6: Open a Pull Request (PR) into `main`.** Do this as soon as you have a first working piece (open it as a **Draft** if it is not ready). On GitHub, after pushing, click **Compare & pull request**, or use the command line:
+
+```bash
+gh pr create --base main --title "feat: auth (register, login, me)" --body-file pr.md
+```
+
+Rules for the PR:
+- **Title:** same style as a commit message.
+- **Description must include `Closes #<issue number>`** so the issue closes automatically when the PR is merged and the PR is linked to the issue.
+- Use this template:
+
+```markdown
+Closes #11
+
+## What
+- bullet list of what this PR adds or changes
+
+## Why
+One sentence: which requirement or section of TECH_TASK it implements.
+
+## How to test
+uv sync
+uv run pytest tests/auth
+uv run ruff check app tests
+
+## Notes
+Anything the reviewer should know (decisions, limits, follow-ups).
+```
+
+- **Request a review** from at least one teammate (right sidebar, **Reviewers**) and assign yourself.
+- Keep PRs focused: one issue per PR. Under about 400 changed lines is ideal.
+
+**Step 7: Review and fix.**
+- At least **1 approval from another member** is required. You cannot approve your own PR.
+- When the reviewer comments, fix it on **the same branch** with new commits and `git push`. The PR updates by itself. Reply to each comment and click **Resolve** when done.
+- Reviewers check: follows the contracts in section 5, tests present and meaningful, `ruff` and tests pass, no secrets, nothing outside the author's area, code is readable. Review with the **Files changed** tab. Leave comments, then **Review changes -> Approve** (or **Request changes**).
+
+**Step 8: Merge.** Once approved and CI is green, the **author** merges with **"Create a merge commit"** (or **"Rebase and merge"**). **Do not squash**, because squashing erases each person's individual commits from the history. Then click **Delete branch**.
+
+**Step 9: Get back to a clean state.**
+
+```bash
+git switch main
+git pull
+git branch -d feat/auth     # delete your local copy of the merged branch
+```
+
+Start the next task again at Step 1.
+
+### 8.3 Keeping your branch up to date
+
+If other PRs were merged while you worked, bring them into your branch **before** asking for the final review:
+
+```bash
+git fetch origin
+git merge origin/main        # simplest; resolve conflicts if Git asks
+uv run pytest                # re-run the tests
+git push
+```
+
+If there are conflicts, Git marks them in the files (`<<<<<<<`, `=======`, `>>>>>>>`). Open the files, keep the correct code, remove the markers, then `git add <file>` and `git commit`. Ask the file's owner if you are unsure. Staying in your own area keeps conflicts rare.
+
+### 8.4 When your work depends on another unmerged PR
+
+If you need code from a PR that is still in review (for example the repository layer), branch from that branch instead of `main`, and say so at the top of your PR description (`Depends on #27`). Merge in order: the PR you depend on first. After it merges, run `git merge origin/main` on your branch so your PR shows only your own changes.
+
+### 8.5 Rules (non-negotiable)
+
+1. **Never push directly to `main`, and never force-push anything shared.** `main` is protected: it requires a PR, 1 approval and passing CI.
+2. **One task = one issue = one branch = one PR.** The branch name comes from the issue.
+3. **Never commit** `.env`, `.venv`, `*.db`, `.coverage`, secrets, or model binaries over 5 MB.
+4. **Never rewrite published history** (`git push --force`, `git reset --hard` on a pushed branch). If you made a mistake, add a new commit (`git revert <sha>` to undo one).
+5. **Do not merge your own PR without a teammate's approval.**
+6. **Use your own GitHub account** for commits, PRs and reviews. Do not commit on behalf of someone else.
+
+### 8.6 Minimum evidence per member (for the grade)
+
+- At least **2 merged PRs**, each linked to an issue with `Closes #N`.
+- At least **8 meaningful commits** spread over several days, not all at the end.
+- At least **2 PR reviews** given to teammates (comments and approvals).
+- Branches you created yourself, named from your issues.
+
+### 8.7 Quick reference
+
+```bash
+git switch main && git pull && git switch -c <branch>   # start a task
+git status                                              # what changed?
+git add <files> && git commit -m "feat: ..."            # save a step
+git push -u origin <branch>                             # publish
+gh pr create --base main                                # open the PR (or use the GitHub button)
+git fetch && git merge origin/main                      # update your branch
+git switch main && git pull && git branch -d <branch>   # clean up after merge
+```
 
 ---
 
