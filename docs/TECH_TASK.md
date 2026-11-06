@@ -22,7 +22,7 @@ SpendSmart is a **FastAPI** web app. A user types an expense in plain text (`Ube
 | Member | Role | Owns (folders / files) | Branch prefixes |
 |---|---|---|---|
 | **Farhad** | Backend core, architecture, deploy, monitoring | `app/main.py`, `app/core/*`, `app/models/*`, `app/repositories/*`, `app/health.py`, `tests/conftest.py`, Render and monitoring | `feat/skeleton`, `feat/repository-layer`, `feat/settings`, `feat/core-utils`, `ops/render-deploy`, `ops/monitoring` |
-| **Hakim** | CI and containers | `.github/workflows/*`, `Dockerfile`, `.dockerignore`, `docker-compose.yml` | `ci/*`, `docker/*`, `cd/*`; optional `ios/*` |
+| **Hakim** | CI and containers | `.github/workflows/*`, `Dockerfile`, `.dockerignore`, `docker-compose.yml`, `Makefile` | `ci/*`, `docker/*`, `cd/*`, `chore/makefile`; optional `ios/*` |
 | **Huseyn** | Core business features | `app/auth/*`, `app/expenses/*`, `app/budgets/*` | `feat/auth`, `feat/expenses`, `feat/budgets`, `feat/budget-alerts` |
 | **Maryam** | AI and data | `app/ai/*`, `app/analytics/*`, `data/*` | `feat/categorizer-*`, `feat/analytics`, `data/*` |
 | **Sabuhi** | Frontend, tests, docs | `app/web/*`, `tests/` (feature tests), `docs/*` (except this file), `README.md` | `feat/dashboard-ui`, `test/*`, `docs/*` |
@@ -95,7 +95,7 @@ flowchart LR
 ├── tests/                      # mirrors app/ structure
 ├── docs/                       # TECH_TASK.md, requirements.md, uml/
 ├── .github/workflows/{ci.yml,cd.yml}                   [Hakim]
-├── Dockerfile  docker-compose.yml                       [Hakim]
+├── Dockerfile  docker-compose.yml  Makefile             [Hakim]
 ├── pyproject.toml  uv.lock  README.md
 ```
 
@@ -440,6 +440,24 @@ Each task = branch, what to build, acceptance criteria. **Definition of done for
 **Branch `docker/dockerfile`** (PW#5): base `python:3.12-slim`; copy `uv` binary from `ghcr.io/astral-sh/uv`; `uv sync --frozen --no-dev`; non-root user; `CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}`; `HEALTHCHECK` hitting `/health`; `.dockerignore` for `.venv`, `.git`, `__pycache__`, `.env`. Image under ~250 MB.
 **Branch `docker/compose`:** `docker-compose.yml` with `app` + `db` (Postgres 16) + env file example `.env.example`. `docker compose up` gives a working app at `localhost:8000`.
 **Branch `cd/ghcr-push`** (PW#6): `.github/workflows/cd.yml` on `push` to `main`, needs the CI job to pass, logs in to GHCR with `GITHUB_TOKEN` (`packages: write`), builds and pushes `ghcr.io/ferhadb/softwarefinalproject:latest` and `:<git-sha>` tags.
+**Branch `chore/makefile`:** a `Makefile` in the repo root so everyone runs the same short commands locally, in CI and for deployment. Mark every target `.PHONY`, add a `help` target that lists them (default goal), and use `uv` for Python commands. Required targets:
+
+| Target | Does |
+|---|---|
+| `make help` | list all targets with one-line descriptions |
+| `make install` | `uv sync` |
+| `make run` | `uv run uvicorn app.main:app --reload` |
+| `make test` | `uv run pytest --cov=app` |
+| `make lint` | `uv run ruff check app tests` |
+| `make format` | `uv run ruff format app tests` (never the whole repo, it rewrites the docs) |
+| `make check` | `lint` + `format --check` + `test` (the same checks CI runs) |
+| `make docker-build` | build the image `spendsmart:local` |
+| `make docker-run` | run that image on port 8000 with `.env` |
+| `make up` / `make down` | `docker compose up --build` / `docker compose down` |
+| `make logs` | `docker compose logs -f app` |
+| `make clean` | remove `.pytest_cache`, `.ruff_cache`, `.coverage`, `__pycache__` |
+
+CI (`ci.yml`) should call `make check` so local and CI behave the same. Document the targets in a short "Commands" table in the README.
 **Optional:** `ios/*`, a small SwiftUI client (login, add expense, list) using the API.
 **Hakim does not touch the live environments** (Render, AWS).
 
