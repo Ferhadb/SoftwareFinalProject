@@ -2,7 +2,7 @@
 
 > **Audience:** Evaluators, course instructors, and the SpendSmart development team.  
 > **Author:** Sabuhi Garibov (Frontend, Tests & Documentation)  
-> **Reference Document:** [`docs/TECH_TASK.md`](../TECH_TASK.md)
+> **Reference Document:** [`docs/TECH_TASK.md`](./TECH_TASK.md)
 
 This document contains formal UML diagrams visualizing SpendSmart's modular architecture, runtime interactions, domain models, and design patterns (LC05, LC06, LC07, LC08).
 
