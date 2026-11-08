@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-tabs">
+      <button id="tab-login" class="tab-btn active" onclick="switchTab('login')">Sign In</button>
+      <button id="tab-register" class="tab-btn" onclick="switchTab('register')">Register</button>
+    </div>
+
+    <!-- Login Form -->
+    <form id="login-form" class="auth-form" onsubmit="handleLogin(event)">
+      <h2>Welcome Back</h2>
+      <p class="subtitle">Log in to manage your expenses and budgets</p>
+
+      <div id="login-alert" class="alert-box hidden"></div>
+
+      <div class="form-group">
+        <label for="login-email">Email Address</label>
+        <input type="email" id="login-email" name="username" required autocomplete="email" placeholder="you@example.com">
+      </div>
+
+      <div class="form-group">
+        <label for="login-password">Password</label>
+        <input type="password" id="login-password" name="password" required autocomplete="current-password" placeholder="••••••••">
+      </div>
+
+      <button type="submit" id="btn-login" class="btn btn-primary btn-block">Sign In</button>
+    </form>
+
+    <!-- Register Form -->
+    <form id="register-form" class="auth-form hidden" onsubmit="handleRegister(event)">
+      <h2>Create an Account</h2>
+      <p class="subtitle">Start tracking your personal finances intelligently</p>
+
+      <div id="register-alert" class="alert-box hidden"></div>
+
+      <div class="form-group">
+        <label for="reg-email">Email Address</label>
+        <input type="email" id="reg-email" name="email" required autocomplete="email" placeholder="you@example.com">
+      </div>
+
+      <div class="form-group">
+        <label for="reg-password">Password (min 8 characters)</label>
+        <input type="password" id="reg-password" name="password" minlength="8" required autocomplete="new-password" placeholder="••••••••">
+      </div>
+
+      <button type="submit" id="btn-register" class="btn btn-primary btn-block">Create Account</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function switchTab(tab) {
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+    const tabLogin = document.getElementById('tab-login');
+    const tabRegister = document.getElementById('tab-register');
+
+    if (tab === 'login') {
+      loginForm.classList.remove('hidden');
+      registerForm.classList.add('hidden');
+      tabLogin.classList.add('active');
+      tabRegister.classList.remove('active');
+    } else {
+      loginForm.classList.add('hidden');
+      registerForm.classList.remove('hidden');
+      tabLogin.classList.remove('active');
+      tabRegister.classList.add('active');
+    }
+  }
+
+  // If already logged in, redirect to dashboard
+  document.addEventListener('DOMContentLoaded', () => {
+    if (SpendSmartAuth.getToken()) {
+      window.location.href = '/';
+    }
+  });
+
+  async function handleLogin(e) {
+    e.preventDefault();
+    const alertEl = document.getElementById('login-alert');
+    alertEl.className = 'alert-box hidden';
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+
+    try {
+      await SpendSmartAuth.login(email, password);
+      window.location.href = '/';
+    } catch (err) {
+      alertEl.textContent = err.message || 'Login failed';
+      alertEl.className = 'alert-box alert-error';
+    }
+  }
+
+  async function handleRegister(e) {
+    e.preventDefault();
+    const alertEl = document.getElementById('register-alert');
+    alertEl.className = 'alert-box hidden';
+    const email = document.getElementById('reg-email').value.trim();
+    const password = document.getElementById('reg-password').value;
+
+    try {
+      await SpendSmartAuth.register(email, password);
+      // Auto-login after registration
+      await SpendSmartAuth.login(email, password);
+      window.location.href = '/';
+    } catch (err) {
+      alertEl.textContent = err.message || 'Registration failed';
+      alertEl.className = 'alert-box alert-error';
+    }
+  }
+</script>
+{% endblock %}
