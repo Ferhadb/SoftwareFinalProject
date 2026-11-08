@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ title or "SpendSmart - Expense Tracker" }}</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header class="navbar">
+    <div class="nav-container">
+      <a href="/" class="brand">
+        <span class="brand-icon">💳</span>
+        <span class="brand-name">SpendSmart</span>
+      </a>
+      <div id="nav-user-area" class="nav-user-area">
+        <!-- populated dynamically by auth.js -->
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <p>SpendSmart &copy; 2026 &mdash; Built with FastAPI &amp; Chart.js</p>
+  </footer>
+
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/auth.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
