@@ -1,0 +1,36 @@
+services:
+  app:
+    build:
+      context: .
+    image: spendsmart:local
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:-spendsmart}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-spendsmart}"
+      JWT_SECRET: "${JWT_SECRET:?Set JWT_SECRET in .env}"
+      CATEGORIZER: "${CATEGORIZER:-rules}"
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+      PORT: "8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: "${POSTGRES_DB:-spendsmart}"
+      POSTGRES_USER: "${POSTGRES_USER:-spendsmart}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"'
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgres_data:
