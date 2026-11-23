@@ -26,3 +26,12 @@ def test_list_and_delete(db):
     assert len(repo.list()) == 1
     repo.delete(u)
     assert repo.list() == []
+
+
+def test_commit_persists_and_rollback_discards(db):
+    repo = UserRepository(db)
+    repo.add(User(email="kept@x.com", hashed_password="h"))
+    repo.commit()
+    repo.add(User(email="dropped@x.com", hashed_password="h"))
+    repo.rollback()
+    assert [u.email for u in repo.list()] == ["kept@x.com"]
