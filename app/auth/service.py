@@ -30,10 +30,9 @@ class AuthService:
         user = User(email=email.lower(), hashed_password=hash_password(password))
         try:
             self.users.add(user)
-            self.users.db.commit()
-            self.users.db.refresh(user)
+            self.users.commit()
         except IntegrityError as exc:
-            self.users.db.rollback()
+            self.users.rollback()
             raise EmailAlreadyRegisteredError from exc
         return user
 
