@@ -24,3 +24,10 @@ class Repository[T]:
 
     def list(self) -> list[T]:
         return list(self.db.scalars(select(self.model)))
+
+    def commit(self) -> None:
+        """Persist this unit of work. Services call it once, after all changes."""
+        self.db.commit()
+
+    def rollback(self) -> None:
+        self.db.rollback()
