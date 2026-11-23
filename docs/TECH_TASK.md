@@ -236,7 +236,11 @@ class Repository(Generic[T]):
     def add(self, obj: T) -> T          # add + flush + refresh
     def delete(self, obj: T) -> None
     def list(self) -> list[T]
+    def commit(self) -> None            # end of the unit of work; services call it once per request
+    def rollback(self) -> None          # undo the pending changes after a failure
 ```
+
+Repositories only flush; **services** decide when to `commit()` and call `rollback()` on errors (e.g. duplicate email).
 
 Concrete repositories extend it with query methods. **All user data queries take `user_id` and filter by it.**
 
