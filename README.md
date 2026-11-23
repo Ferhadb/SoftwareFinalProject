@@ -13,6 +13,30 @@ uv run pytest                        # tests
 uv run ruff check .                  # lint
 ```
 
+## Commands
+
+Run these commands from the repository root. Use `make` or `make help`
+to list available commands.
+
+| Command | Purpose |
+|---|---|
+| `make install` | Install dependencies with uv |
+| `make run` | Start the development server |
+| `make test` | Run tests with coverage; require at least 60% |
+| `make lint` | Check application and test code with Ruff |
+| `make format` | Format application and test code |
+| `make check` | Run lint, formatting checks, and tests |
+| `make docker-build` | Build the `spendsmart:local` image |
+| `make docker-run` | Run the image on port 8000 using `.env` |
+| `make up` | Build and start the Compose services |
+| `make down` | Stop the Compose services |
+| `make logs` | Follow the Compose application logs |
+| `make clean` | Remove generated test, lint, and Python caches |
+
+Docker commands require Docker to be running.
+`make docker-run` also requires a local `.env` file.
+Compose commands require `docker-compose.yml`.
+
 ## Team
 
 | Member | Area |
