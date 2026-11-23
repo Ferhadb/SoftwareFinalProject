@@ -11,6 +11,7 @@ from app.budgets.router import router as budgets_router
 from app.core.config import get_settings
 from app.core.db import Base, engine
 from app.core.logging import setup_logging
+from app.core.middleware import log_requests
 from app.expenses.router import router as expenses_router
 from app.web.router import router as web_router
 
@@ -23,6 +24,7 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="SpendSmart", lifespan=lifespan)
+app.middleware("http")(log_requests)
 
 for r in (
     health.router,
