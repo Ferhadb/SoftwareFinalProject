@@ -1,3 +1,6 @@
+import pytest
+from pydantic import ValidationError
+
 from app.core.config import Settings, get_settings
 
 
@@ -18,3 +21,19 @@ def test_env_overrides_defaults(monkeypatch):
 
 def test_get_settings_is_singleton():
     assert get_settings() is get_settings()
+
+
+def test_render_postgres_urls_use_psycopg_driver():
+    for url in ("postgres://u:p@h/db", "postgresql://u:p@h/db"):
+        assert (
+            Settings(_env_file=None, database_url=url).database_url
+            == "postgresql+psycopg://u:p@h/db"
+        )
+
+
+def test_prod_requires_real_jwt_secret():
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, app_env="prod")
+    assert (
+        Settings(_env_file=None, app_env="prod", jwt_secret="s3cret").app_env == "prod"
+    )
