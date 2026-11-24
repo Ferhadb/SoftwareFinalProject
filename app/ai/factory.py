@@ -1,6 +1,7 @@
 """Factory that builds the categorizer chosen by the CATEGORIZER setting."""
 
 from collections.abc import Callable, Iterable
+from functools import lru_cache
 
 from app.ai.base import CategorizerStrategy
 from app.ai.rules import RulesCategorizer
@@ -71,6 +72,10 @@ def build_categorizer(kind: str) -> CategorizerStrategy:
     return builder()
 
 
+@lru_cache  # built once per process, like get_settings (Singleton)
 def get_categorizer() -> CategorizerStrategy:
-    """FastAPI dependency: the categorizer selected by settings."""
+    """FastAPI dependency: the categorizer selected by settings.
+
+    Tests that change CATEGORIZER must call get_categorizer.cache_clear().
+    """
     return build_categorizer(get_settings().categorizer)

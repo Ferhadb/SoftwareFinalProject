@@ -91,3 +91,14 @@ def test_helper_works_with_the_chain():
 def test_helper_returns_nothing_when_no_match():
     rules = build_categorizer("rules")
     assert factory.categorize_with_source(rules, "random thing").is_nothing()
+
+
+@pytest.fixture(autouse=True)
+def fresh_categorizer_cache():
+    get_categorizer.cache_clear()
+    yield
+    get_categorizer.cache_clear()
+
+
+def test_get_categorizer_is_built_once():
+    assert get_categorizer() is get_categorizer()
