@@ -1,9 +1,9 @@
 # AI and analytics
 
-Maryam's part of SpendSmart: `app/ai/` (expense categorization), `app/analytics/`
-(spending reports) and `data/` (labelled examples). The contracts are in
-TECH_TASK §5.6, §6.5 and §7.4. This file explains how they are implemented and
-records the decisions the spec leaves open.
+How expenses get their category (`app/ai/`), how the analytics endpoints
+compute their numbers (`app/analytics/`), and the labelled data behind both
+(`data/`). The contracts are in TECH_TASK §5.6, §6.5 and §7.4; this file covers
+what the spec leaves open.
 
 ## Categorization
 
@@ -41,9 +41,14 @@ The `CATEGORIZER` setting picks what runs: `rules`, `ml`, `llm` or `chain`
 
 **Rules.** All keywords are compiled into one regular expression: whole words
 only, case-insensitive, longest keyword first (so "Uber Eats" is Food, not
-Transport). Azerbaijani names are listed in both spellings, e.g. `bakıkart` and
-`bakikart`, because `re.IGNORECASE` does not treat `I` and `ı` as the same
-letter. `Other` has no keywords; it is what's left when nothing matches.
+Transport). Before matching, `I`, `İ` and `ı` are all turned into `i`, because
+Python lowercases `İ` into two characters and never turns `I` into `ı`. That
+way "AZƏRİŞIQ" and "azərişiq" match the same keyword. Names that differ in
+other letters are listed in both spellings (`azərişıq` and `azerishiq`).
+`Other` has no keywords; it is what's left when nothing matches.
+
+Rules look at the store, not the item, so "Bravo umbrella" becomes Food. The
+user can correct it by choosing the category, which is saved as `manual`.
 
 **ML.** TF-IDF + Logistic Regression trained on `data/seed_expenses.csv` the
 first time it is used, then kept in memory. Returns Nothing when the top
@@ -70,7 +75,7 @@ its `name` is the source.
 ### Proposed: a `fallback` source
 
 When every strategy returns Nothing, the expense is saved as `Other`. Saving
-that as `rules` would be wrong, because no rule matched. I propose adding
+that as `rules` would be wrong, because no rule matched. Proposal: add
 `fallback` to `CategorySource`. It is Farhad's model, and on an existing
 Postgres database the column needs widening (`FALLBACK` is longer than
 `MANUAL`), so this needs his approval before #12 uses it.
@@ -93,11 +98,9 @@ in `app/repositories/expense_repo.py`, Farhad's file, so that PR needs his
 review.
 
 Input rules: `month` must be `YYYY-MM` (otherwise 422) and defaults to the
-current month; `months` is 1–24; `limit` is 1–20. Money stays `Decimal` with two
-decimal places.
-
-Amounts are computed as `Decimal`. The JSON format (number or string) is agreed
-with Sabuhi so the dashboard charts read it correctly.
+current month; `months` is 1–24; `limit` is 1–20. Amounts are computed as
+`Decimal` with two decimal places; their JSON format (number or string) is
+agreed with Sabuhi so the dashboard charts read it correctly.
 
 ## Data (#15)
 
@@ -112,6 +115,20 @@ keywords, so the comparison between rules and ML stays fair.
 
 ## Later, if time allows
 
-Learning from a user's manual corrections (for example, one user's "Bolt" always
-going to Transport) would need a new per-user table and changes to the expense
-edit flow. It is not planned before the Dec 10 feature freeze.
+None of this is planned before the Dec 10 feature freeze. The eight main
+categories stay fixed; anything new goes under one of them, or under Other.
+
+- **Built-in subcategories** under the eight (Food → Groceries, Restaurants;
+  Shopping → Clothes, Accessories), stored in one optional column on expenses.
+  Rules could then let item words beat store words, so "Bravo umbrella" goes to
+  Shopping → Accessories. Budgets, alerts and ML keep working on the eight.
+- **User-created subcategories** under the same eight, in a per-user table. A
+  general model can't know them, so they would be filled from the user's own
+  corrections or by the LLM given the user's list.
+- **A larger training set** from public transaction datasets, merged with the
+  seed CSV through a download script rather than committed to the repo. Their
+  labels have to be mapped onto the eight categories and their licenses
+  checked. Local Azerbaijani rows stay a separate test set, so the score still
+  shows how the model handles local spending.
+- **Learning from manual corrections**, per user: if one user always moves
+  "Bolt" to Transport, their next Bolt expense gets Transport automatically.
