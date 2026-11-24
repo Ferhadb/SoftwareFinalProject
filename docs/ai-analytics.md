@@ -104,7 +104,7 @@ two decimal places and sent as JSON numbers, matching the dashboard's mock data.
 
 `data/seed_expenses.csv` has two columns, `description,category`: at least 200
 rows, at least 15 per category, and only the eight `Category` values. It mixes
-local merchants (Bravo, Araz, Bolt, Wolt, Azercell, Azərişıq, aptek) with
+local merchants (Bravo, Araz, Bolt, Wolt, Azercell, Azerishiq, aptek) with
 international ones (Netflix, Spotify, Uber, Starbucks).
 
 For the ML evaluation the rows are split 80/20, stratified by category, with a
