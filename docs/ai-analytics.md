@@ -98,9 +98,8 @@ in `app/repositories/expense_repo.py`, Farhad's file, so that PR needs his
 review.
 
 Input rules: `month` must be `YYYY-MM` (otherwise 422) and defaults to the
-current month; `months` is 1–24; `limit` is 1–20. Amounts are computed as
-`Decimal` with two decimal places; their JSON format (number or string) is
-agreed with Sabuhi so the dashboard charts read it correctly.
+current month; `months` is 1–24; `limit` is 1–20. Amounts are computed as `Decimal` with 
+two decimal places and sent as JSON numbers, matching the dashboard's mock data.
 
 ## Data (#15)
 
