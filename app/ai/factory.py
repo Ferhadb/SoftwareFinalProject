@@ -32,6 +32,21 @@ class ChainCategorizer:
         return self.categorize_with_source(description).map(lambda pair: pair[0])
 
 
+def categorize_with_source(
+    categorizer: CategorizerStrategy, description: str
+) -> Maybe[tuple[Category, str]]:
+    """Category plus the name of the strategy that decided, for any categorizer.
+
+    Works whether CATEGORIZER is a single strategy (e.g. the default "rules")
+    or the chain, so the expense service needs only this one call.
+    """
+    if isinstance(categorizer, ChainCategorizer):
+        return categorizer.categorize_with_source(description)
+    return categorizer.categorize(description).map(
+        lambda category: (category, categorizer.name)
+    )
+
+
 def _not_ready(kind: str) -> Callable[[], CategorizerStrategy]:
     def build() -> CategorizerStrategy:
         raise NotImplementedError(f"the '{kind}' categorizer is not implemented yet")

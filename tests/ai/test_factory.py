@@ -72,3 +72,22 @@ def test_get_categorizer_uses_settings(monkeypatch):
         factory, "get_settings", lambda: SimpleNamespace(categorizer="chain")
     )
     assert isinstance(get_categorizer(), ChainCategorizer)
+
+
+def test_helper_works_with_a_single_strategy():
+    rules = build_categorizer("rules")
+    assert factory.categorize_with_source(rules, "Bolt ride") == Maybe.of(
+        (Category.TRANSPORT, "rules")
+    )
+
+
+def test_helper_works_with_the_chain():
+    chain = build_categorizer("chain")
+    assert factory.categorize_with_source(chain, "Netflix") == Maybe.of(
+        (Category.SUBSCRIPTIONS, "rules")
+    )
+
+
+def test_helper_returns_nothing_when_no_match():
+    rules = build_categorizer("rules")
+    assert factory.categorize_with_source(rules, "random thing").is_nothing()
