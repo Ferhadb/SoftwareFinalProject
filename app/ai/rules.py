@@ -7,8 +7,6 @@ from app.core.monads import Maybe
 from app.models import Category
 
 # To support a new merchant, add it to the right list. Keep keywords lowercase.
-# Azerbaijani names are listed with and without special letters (ə, ş),
-# because users type both. Dotted and dotless i don't need two spellings.
 DEFAULT_KEYWORDS: dict[Category, tuple[str, ...]] = {
     Category.FOOD: (
         "bravo",
@@ -72,11 +70,8 @@ DEFAULT_KEYWORDS: dict[Category, tuple[str, ...]] = {
         "bakcell",
         "nar mobile",
         "azerishiq",
-        "azərişıq",
         "azeriqaz",
-        "azəriqaz",
         "azersu",
-        "azərsu",
         "electricity",
         "water bill",
         "gas bill",
@@ -111,15 +106,6 @@ DEFAULT_KEYWORDS: dict[Category, tuple[str, ...]] = {
     ),
 }
 
-# Python's lower() turns "I" into "i" and "İ" into "i" plus a combining dot,
-# which breaks Azerbaijani text. Folding I, İ and ı to "i" first makes
-# "AZƏRİŞIQ", "Azərişıq" and "azərişiq" all look the same.
-_FOLD_I = str.maketrans({"I": "i", "İ": "i", "ı": "i"})
-
-
-def _normalize(text: str) -> str:
-    return text.translate(_FOLD_I).lower()
-
 
 class RulesCategorizer:
     name = "rules"
@@ -128,7 +114,7 @@ class RulesCategorizer:
         self, keywords: Mapping[Category, Iterable[str]] = DEFAULT_KEYWORDS
     ) -> None:
         self._category_of = {
-            _normalize(word): category
+            word.lower(): category
             for category, words in keywords.items()
             for word in words
         }
@@ -138,7 +124,8 @@ class RulesCategorizer:
         self._pattern = re.compile(rf"\b(?:{alternatives})\b")
 
     def categorize(self, description: str) -> Maybe[Category]:
-        match = self._pattern.search(_normalize(description))
+        # Lowercase first, so the matched text is always a key in _category_of.
+        match = self._pattern.search(description.lower())
         if match is None:
             return Maybe.nothing()
         return Maybe.of(self._category_of[match.group(0)])
