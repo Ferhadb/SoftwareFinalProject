@@ -1,7 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
-from app.models import Category
+from app.models import Category, CategorySource
 from app.repositories import ExpenseRepository
 from app.repositories.expense_repo import month_bounds
 
@@ -83,3 +83,11 @@ def test_top_merchants_uses_merchant_or_description(db, make_user, make_expense)
     make_expense(u, 1, "Gum", Category.FOOD, date(2026, 11, 4))
     got = ExpenseRepository(db).top_merchants(u.id, "2026-11", limit=2)
     assert got == [("Starbucks", Decimal("11.00")), ("Uber", Decimal("4.00"))]
+
+
+def test_fallback_source_round_trips(db, make_user, make_expense):
+    e = make_expense(make_user(), 3, "mystery", Category.OTHER)
+    e.category_source = CategorySource.FALLBACK
+    db.flush()
+    db.expire_all()
+    assert ExpenseRepository(db).get(e.id).category_source is CategorySource.FALLBACK

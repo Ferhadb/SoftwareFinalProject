@@ -24,6 +24,7 @@ class CategorySource(enum.StrEnum):
     ML = "ml"
     LLM = "llm"
     MANUAL = "manual"
+    FALLBACK = "fallback"  # no strategy matched; saved as Other
 
 
 class Expense(Base):
