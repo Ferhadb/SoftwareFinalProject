@@ -1,34 +1,38 @@
 /**
  * SpendSmart Dashboard Controller
- * Connects UI actions to SpendSmartApi and updates charts & lists.
+ * Connects UI actions to SpendSmartApi and renders the overview.
  */
 const Dashboard = (() => {
-  let categoryChartInstance = null;
-  let trendChartInstance = null;
+  let trendChart = null;
+  let trendData = [];
+  const expensesById = new Map();
+
+  const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+  const fmt = (v) => money.format(Number(v || 0));
 
   function getCurrentMonth() {
     const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    return `${year}-${month}`;
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  }
+
+  function monthName(ym, short = false) {
+    const [y, m] = ym.split("-").map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString("en-US", short ? { month: "short" } : { month: "long", year: "numeric" });
   }
 
   let selectedMonth = getCurrentMonth();
 
   async function init() {
-    if (!SpendSmartApi.getToken()) {
-      return; // Handled by auth.js redirect
-    }
+    if (!SpendSmartApi.getToken()) return; // auth.js redirects
 
     const monthInput = document.getElementById("month-input");
-    if (monthInput) {
-      monthInput.value = selectedMonth;
-    }
-
+    if (monthInput) monthInput.value = selectedMonth;
+    document.addEventListener("themechange", drawTrend);
     await refreshAll();
   }
 
   async function refreshAll() {
+    document.getElementById("page-title").innerText = monthName(selectedMonth);
     await Promise.allSettled([
       loadSummary(),
       loadCategoryAnalytics(),
@@ -48,99 +52,105 @@ const Dashboard = (() => {
   // --- Summary ---
   async function loadSummary() {
     try {
-      const summary = await SpendSmartApi.getSummary(selectedMonth);
-      document.getElementById("summary-total").innerText = `$${Number(summary.total || 0).toFixed(2)}`;
-      document.getElementById("summary-count").innerText = `${summary.count || 0} transactions`;
-      document.getElementById("summary-average").innerText = `$${Number(summary.average || 0).toFixed(2)}`;
-      document.getElementById("summary-top-category").innerText = summary.top_category || "—";
-    } catch (_) {
-      // Graceful fallback for unseeded or early environments
-    }
+      const s = await SpendSmartApi.getSummary(selectedMonth);
+      const count = s.count || 0;
+      document.getElementById("summary-total").innerText = fmt(s.total);
+      document.getElementById("summary-count").innerText = `${count} ${count === 1 ? "expense" : "expenses"}`;
+      document.getElementById("summary-average").innerText = fmt(s.average);
+      document.getElementById("summary-top-category").innerText = s.top_category || "—";
+    } catch (_) {}
   }
 
-  // --- Quick Add Expense ---
+  // --- Quick add ---
   async function handleAddExpense(e) {
     e.preventDefault();
     const input = document.getElementById("expense-text-input");
     const errorEl = document.getElementById("quick-add-error");
     const btn = document.getElementById("btn-add-expense");
-
     const text = input.value.trim();
     if (!text) return;
 
     errorEl.classList.add("hidden");
     btn.disabled = true;
-    btn.innerText = "Adding...";
-
     try {
       await SpendSmartApi.addExpenseFromText(text);
       input.value = "";
       await refreshAll();
     } catch (err) {
-      errorEl.innerText = err.message || "Failed to add expense";
+      errorEl.innerText = err.message || "Could not add the expense";
       errorEl.classList.remove("hidden");
     } finally {
       btn.disabled = false;
-      btn.innerText = "Add Expense";
+      input.focus();
     }
   }
 
-  // --- Expenses List ---
-  async function loadExpenses() {
-    const tbody = document.getElementById("expenses-tbody");
-    const countBadge = document.getElementById("expenses-count-badge");
-    try {
-      const expenses = await SpendSmartApi.getExpenses(selectedMonth);
-      countBadge.innerText = `${expenses.length} items`;
+  // --- Expenses: printed as receipt lines ---
+  function shortDate(iso) {
+    if (!iso) return "";
+    return new Date(`${iso}T00:00`).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+  }
 
-      if (!expenses || expenses.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="empty-state">No expenses found for ${selectedMonth}</td></tr>`;
+  async function loadExpenses() {
+    const list = document.getElementById("expenses-list");
+    const countEl = document.getElementById("expenses-count-badge");
+    const totalEl = document.getElementById("receipt-total");
+    document.getElementById("receipt-month").innerText = monthName(selectedMonth);
+    try {
+      const expenses = (await SpendSmartApi.getExpenses(selectedMonth)) || [];
+      countEl.innerText = String(expenses.length);
+      totalEl.innerText = expenses.reduce((sum, x) => sum + Number(x.amount || 0), 0).toFixed(2);
+      expensesById.clear();
+      expenses.forEach((x) => expensesById.set(x.id, x));
+
+      if (expenses.length === 0) {
+        list.innerHTML = `<li class="empty">Nothing printed for ${monthName(selectedMonth)} yet</li>`;
         return;
       }
 
-      tbody.innerHTML = expenses
+      list.innerHTML = expenses
         .map(
-          (item) => `
-        <tr>
-          <td>${item.occurred_on || "—"}</td>
-          <td>
-            <strong>${escapeHtml(item.description)}</strong>
-            ${item.merchant && item.merchant !== item.description ? `<br><small class="text-muted">${escapeHtml(item.merchant)}</small>` : ""}
-          </td>
-          <td>
-            <span class="badge">${item.category}</span>
-            <span class="badge badge-source">${item.category_source || "auto"}</span>
-          </td>
-          <td><strong>$${Number(item.amount).toFixed(2)}</strong></td>
-          <td>
-            <button class="btn btn-sm btn-outline" onclick="Dashboard.openEditExpenseModal(${item.id}, '${escapeHtml(item.description)}', ${item.amount}, '${item.category}')">Edit</button>
-            <button class="btn btn-sm btn-danger-outline" onclick="Dashboard.handleDeleteExpense(${item.id})">Delete</button>
-          </td>
-        </tr>
-      `
+          (x) => `
+        <li class="item">
+          <span class="item-date">${escapeHtml(shortDate(x.occurred_on))}</span>
+          <span class="item-desc" title="${escapeHtml(x.description)}">${escapeHtml(x.description)}</span>
+          <span class="item-amt num">${Number(x.amount || 0).toFixed(2)}</span>
+          <span class="item-cat">${escapeHtml(x.category)}<span class="source">${escapeHtml(x.category_source || "")}</span></span>
+          <span class="item-actions">
+            <button class="btn btn-ghost btn-icon" type="button" onclick="Dashboard.openEditExpenseModal(${Number(x.id)})" aria-label="Change category" title="Change category">
+              <svg class="icon"><use href="#i-pencil"/></svg>
+            </button>
+            <button class="btn btn-ghost btn-icon danger" type="button" onclick="Dashboard.handleDeleteExpense(${Number(x.id)})" aria-label="Delete" title="Delete">
+              <svg class="icon"><use href="#i-trash"/></svg>
+            </button>
+          </span>
+        </li>`
         )
         .join("");
-    } catch (err) {
-      tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Could not load expenses.</td></tr>`;
+    } catch (_) {
+      list.innerHTML = `<li class="empty">Could not load expenses</li>`;
     }
   }
 
   async function handleDeleteExpense(id) {
-    if (!confirm("Are you sure you want to delete this expense?")) return;
+    const x = expensesById.get(id);
+    if (!confirm(`Delete "${x ? x.description : "this expense"}"?`)) return;
     try {
       await SpendSmartApi.deleteExpense(id);
       await refreshAll();
     } catch (err) {
-      alert(err.message || "Failed to delete expense");
+      alert(err.message || "Could not delete the expense");
     }
   }
 
-  // --- Edit Expense Modal ---
-  function openEditExpenseModal(id, desc, amount, category) {
+  // --- Edit modal ---
+  function openEditExpenseModal(id) {
+    const x = expensesById.get(id);
+    if (!x) return;
     document.getElementById("edit-expense-id").value = id;
-    document.getElementById("edit-expense-desc").innerText = desc;
-    document.getElementById("edit-expense-amount").innerText = `$${Number(amount).toFixed(2)}`;
-    document.getElementById("edit-expense-category").value = category;
+    document.getElementById("edit-expense-desc").innerText = x.description;
+    document.getElementById("edit-expense-amount").innerText = fmt(x.amount);
+    document.getElementById("edit-expense-category").value = x.category;
     document.getElementById("edit-expense-modal").classList.remove("hidden");
   }
 
@@ -152,13 +162,12 @@ const Dashboard = (() => {
     e.preventDefault();
     const id = document.getElementById("edit-expense-id").value;
     const category = document.getElementById("edit-expense-category").value;
-
     try {
       await SpendSmartApi.updateExpense(id, { category });
       closeEditExpenseModal();
       await refreshAll();
     } catch (err) {
-      alert(err.message || "Failed to update category");
+      alert(err.message || "Could not change the category");
     }
   }
 
@@ -166,39 +175,37 @@ const Dashboard = (() => {
   async function loadBudgets() {
     const list = document.getElementById("budgets-list");
     try {
-      const statuses = await SpendSmartApi.getBudgetStatus(selectedMonth);
-      if (!statuses || statuses.length === 0) {
-        list.innerHTML = `<p class="empty-state">No budgets set. Click "+ Set Budget" to create one.</p>`;
+      const statuses = (await SpendSmartApi.getBudgetStatus(selectedMonth)) || [];
+      if (statuses.length === 0) {
+        list.innerHTML = `<p class="empty">No budgets yet. Set a monthly limit for a category to track it here</p>`;
         return;
       }
-
+      const levelText = { ok: "On track", warning: "Past 80% of the limit", exceeded: "Over the limit" };
       list.innerHTML = statuses
         .map((b) => {
-          const percent = Math.min(b.percent || 0, 100);
-          let progressClass = "progress-ok";
-          if (b.level === "warning") progressClass = "progress-warning";
-          if (b.level === "exceeded") progressClass = "progress-exceeded";
-
+          const pct = Number(b.percent || 0);
+          const level = b.level || "ok";
           return `
-          <div class="budget-item">
-            <div class="budget-item-header">
-              <span><strong>${b.category}</strong> (${b.percent || 0}%)</span>
-              <span>$${Number(b.spent || 0).toFixed(2)} / $${Number(b.limit).toFixed(2)}</span>
+          <div class="budget">
+            <div class="budget-top">
+              <span>${escapeHtml(b.category)}</span>
+              <span class="figures num">${fmt(b.spent)} / ${fmt(b.limit)}</span>
             </div>
-            <div class="progress-track">
-              <div class="progress-fill ${progressClass}" style="width: ${percent}%;"></div>
+            <div class="meter" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="${escapeHtml(b.category)} budget used">
+              <div class="meter-fill ${level}" style="width: ${Math.min(pct, 100)}%"></div>
             </div>
-          </div>
-        `;
+            <span class="budget-level ${level}"><span class="num">${pct.toFixed(0)}%</span> · ${levelText[level] || level}</span>
+          </div>`;
         })
         .join("");
     } catch (_) {
-      list.innerHTML = `<p class="empty-state">Could not load budgets.</p>`;
+      list.innerHTML = `<p class="empty">Could not load budgets</p>`;
     }
   }
 
   function openBudgetModal() {
     document.getElementById("budget-modal").classList.remove("hidden");
+    document.getElementById("budget-limit").focus();
   }
 
   function closeBudgetModal() {
@@ -209,13 +216,12 @@ const Dashboard = (() => {
     e.preventDefault();
     const category = document.getElementById("budget-category").value;
     const limit = parseFloat(document.getElementById("budget-limit").value);
-
     try {
       await SpendSmartApi.setBudget(category, limit);
       closeBudgetModal();
       await refreshAll();
     } catch (err) {
-      alert(err.message || "Failed to save budget");
+      alert(err.message || "Could not save the budget");
     }
   }
 
@@ -223,122 +229,130 @@ const Dashboard = (() => {
   async function loadAlerts() {
     const container = document.getElementById("alerts-container");
     const list = document.getElementById("alerts-list");
-
     try {
-      const alerts = await SpendSmartApi.getAlerts();
-      if (!alerts || alerts.length === 0) {
+      const alerts = (await SpendSmartApi.getAlerts()) || [];
+      if (alerts.length === 0) {
         container.classList.add("hidden");
         return;
       }
-
-      // Filter to current month alerts or show recent
       container.classList.remove("hidden");
       list.innerHTML = alerts
         .slice(0, 5)
-        .map(
-          (a) => `
-        <div class="alert-badge-item">
-          <span>⚠️ <strong>${a.category}</strong> budget threshold crossed: <strong>${a.level}%</strong> reached</span>
-          <span class="badge">${a.month}</span>
-        </div>
-      `
-        )
+        .map((a) => {
+          const level = Number(a.level) >= 100 ? "exceeded" : "warning";
+          const text = level === "exceeded" ? "went over its budget" : "passed 80% of its budget";
+          return `
+          <div class="alert-row">
+            <span class="dot ${level}"></span>
+            <span>${escapeHtml(a.category)} ${text}</span>
+            <span class="when num">${escapeHtml(a.month || "")}</span>
+          </div>`;
+        })
         .join("");
     } catch (_) {
       container.classList.add("hidden");
     }
   }
 
-  // --- Charts (Chart.js) ---
+  // --- By category: ranked list with thin bars ---
   async function loadCategoryAnalytics() {
+    const list = document.getElementById("category-list");
+    const meta = document.getElementById("category-meta");
     try {
-      const data = await SpendSmartApi.getByCategory(selectedMonth);
-      const ctx = document.getElementById("category-chart");
-      if (!ctx) return;
-
-      const labels = data.map((d) => d.category);
-      const values = data.map((d) => Number(d.total));
-
-      if (categoryChartInstance) {
-        categoryChartInstance.destroy();
+      const data = ((await SpendSmartApi.getByCategory(selectedMonth)) || [])
+        .map((d) => ({ ...d, total: Number(d.total) }))
+        .sort((a, b) => b.total - a.total);
+      meta.innerText = data.length ? `${data.length} ${data.length === 1 ? "category" : "categories"}` : "";
+      if (data.length === 0) {
+        list.innerHTML = `<li class="empty">Nothing spent in ${monthName(selectedMonth)}</li>`;
+        return;
       }
+      const max = data[0].total || 1;
+      list.innerHTML = data
+        .map(
+          (d) => `
+        <li class="share-row">
+          <span>${escapeHtml(d.category)}</span>
+          <span class="amount num">${fmt(d.total)}</span>
+          <span class="share-bar"><span style="width: ${(d.total / max) * 100}%"></span></span>
+        </li>`
+        )
+        .join("");
+    } catch (_) {
+      list.innerHTML = `<li class="empty">Could not load categories</li>`;
+    }
+  }
 
-      categoryChartInstance = new Chart(ctx, {
-        type: "doughnut",
-        data: {
-          labels: labels.length ? labels : ["No Expenses"],
-          datasets: [
-            {
-              data: values.length ? values : [1],
-              backgroundColor: [
-                "#3b82f6",
-                "#10b981",
-                "#f59e0b",
-                "#ef4444",
-                "#8b5cf6",
-                "#ec4899",
-                "#06b6d4",
-                "#94a3b8",
-              ],
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { position: "right" },
-          },
-        },
-      });
+  // --- Trend: one line, the selected month marked ---
+  async function loadTrendAnalytics() {
+    try {
+      trendData = (await SpendSmartApi.getTrend(6)) || [];
+      drawTrend();
     } catch (_) {}
   }
 
-  async function loadTrendAnalytics() {
-    try {
-      const trend = await SpendSmartApi.getTrend(6);
-      const ctx = document.getElementById("trend-chart");
-      if (!ctx) return;
+  function drawTrend() {
+    const ctx = document.getElementById("trend-chart");
+    if (!ctx || typeof Chart === "undefined") return;
+    const css = getComputedStyle(document.documentElement);
+    const v = (name) => css.getPropertyValue(name).trim();
+    const accent = v("--accent");
+    const muted = v("--muted");
+    const line = v("--line");
 
-      const labels = trend.map((t) => t.month);
-      const values = trend.map((t) => Number(t.total));
-
-      if (trendChartInstance) {
-        trendChartInstance.destroy();
-      }
-
-      trendChartInstance = new Chart(ctx, {
-        type: "line",
-        data: {
-          labels,
-          datasets: [
-            {
-              label: "Monthly Total ($)",
-              data: values,
-              borderColor: "#3b82f6",
-              backgroundColor: "rgba(59, 130, 246, 0.1)",
-              fill: true,
-              tension: 0.3,
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            y: { beginAtZero: true },
+    if (trendChart) trendChart.destroy();
+    trendChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: trendData.map((t) => monthName(t.month, true)),
+        datasets: [
+          {
+            data: trendData.map((t) => Number(t.total)),
+            borderColor: accent,
+            borderWidth: 2,
+            tension: 0.35,
+            fill: false,
+            pointRadius: trendData.map((t) => (t.month === selectedMonth ? 4 : 0)),
+            pointHoverRadius: 4,
+            pointBackgroundColor: accent,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 400 },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            displayColors: false,
+            callbacks: { label: (c) => fmt(c.parsed.y) },
           },
         },
-      });
-    } catch (_) {}
+        scales: {
+          x: { grid: { display: false }, border: { display: false }, ticks: { color: muted, font: { family: "IBM Plex Mono", size: 12 } } },
+          y: {
+            beginAtZero: true,
+            grid: { color: line },
+            border: { display: false },
+            ticks: { color: muted, maxTicksLimit: 5, font: { family: "IBM Plex Mono", size: 12 }, callback: (val) => `$${val}` },
+          },
+        },
+      },
+    });
   }
 
   function escapeHtml(str) {
-    if (!str) return "";
-    const div = document.createElement("div");
-    div.innerText = str;
-    return div.innerHTML;
+    if (str === null || str === undefined) return "";
+    return String(str).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      closeBudgetModal();
+      closeEditExpenseModal();
+    }
+  });
 
   document.addEventListener("DOMContentLoaded", init);
 

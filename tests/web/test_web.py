@@ -16,8 +16,8 @@ def test_dashboard_page():
     response = client.get("/")
     assert response.status_code == 200
     assert "SpendSmart" in response.text
-    assert "Overview" in response.text
-    assert "Quick Add Expense" in response.text
+    assert "Add expense" in response.text
+    assert 'id="trend-chart"' in response.text
 
 
 def test_login_page():
@@ -26,8 +26,8 @@ def test_login_page():
     response = client.get("/login")
     assert response.status_code == 200
     assert "SpendSmart" in response.text
-    assert "Welcome Back" in response.text
-    assert "Create an Account" in response.text
+    assert "Sign in" in response.text
+    assert "Create an account" in response.text
 
 
 def test_static_css_served():
@@ -35,7 +35,8 @@ def test_static_css_served():
     client = TestClient(app)
     response = client.get("/static/css/style.css")
     assert response.status_code == 200
-    assert "--primary:" in response.text
+    assert "--accent:" in response.text
+    assert '[data-theme="dark"]' in response.text
 
 
 def test_static_js_served():

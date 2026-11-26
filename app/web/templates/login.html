@@ -1,115 +1,136 @@
 {% extends "base.html" %}
 
+{% block body_class %}auth-page{% endblock %}
+
 {% block content %}
-<div class="auth-page">
-  <div class="auth-card">
-    <div class="auth-tabs">
-      <button id="tab-login" class="tab-btn active" onclick="switchTab('login')">Sign In</button>
-      <button id="tab-register" class="tab-btn" onclick="switchTab('register')">Register</button>
-    </div>
+<main class="auth">
+  <div class="receipt-wrap">
+    <section class="receipt">
+      <header class="receipt-head">
+        <span class="receipt-brand"><span class="brand-mark" aria-hidden="true"><span></span></span>SpendSmart</span>
+        <h1 class="receipt-tagline">Write what you paid. We file it</h1>
+        <div class="receipt-meta"><span id="receipt-date">Today</span><span>No. 0001</span></div>
+      </header>
 
-    <!-- Login Form -->
-    <form id="login-form" class="auth-form" onsubmit="handleLogin(event)">
-      <h2>Welcome Back</h2>
-      <p class="subtitle">Log in to manage your expenses and budgets</p>
+      <hr class="cut">
 
-      <div id="login-alert" class="alert-box hidden"></div>
+      <ol class="entries" aria-label="Example entries">
+        <li class="entry-line"><span class="typed" data-text="Uber 12.40">Uber 12.40</span><span class="cat">Transport</span><span class="amt">12.40</span></li>
+        <li class="entry-line"><span class="typed" data-text="Bravo groceries 23,50">Bravo groceries 23,50</span><span class="cat">Food</span><span class="amt">23.50</span></li>
+        <li class="entry-line"><span class="typed" data-text="Netflix 9.99">Netflix 9.99</span><span class="cat">Subscriptions</span><span class="amt">9.99</span></li>
+        <li class="entry-line total"><span>Total</span><span></span><span class="amt">45.89</span></li>
+      </ol>
 
-      <div class="form-group">
-        <label for="login-email">Email Address</label>
-        <input type="email" id="login-email" name="username" required autocomplete="email" placeholder="you@example.com">
+      <hr class="cut">
+
+      <div class="receipt-tabs" role="tablist">
+        <button id="tab-login" class="receipt-tab active" type="button" role="tab" onclick="switchTab('login')">Sign in</button>
+        <button id="tab-register" class="receipt-tab" type="button" role="tab" onclick="switchTab('register')">Create an account</button>
       </div>
 
-      <div class="form-group">
-        <label for="login-password">Password</label>
-        <input type="password" id="login-password" name="password" required autocomplete="current-password" placeholder="••••••••">
-      </div>
+      <form id="login-form" class="auth-form" onsubmit="handleLogin(event)">
+        <div id="login-alert" class="notice hidden"></div>
+        <label class="slip-field"><span>Email</span>
+          <input type="email" id="login-email" name="username" required autocomplete="email" placeholder="you@example.com">
+        </label>
+        <label class="slip-field"><span>Password</span>
+          <input type="password" id="login-password" name="password" required autocomplete="current-password">
+        </label>
+        <button type="submit" id="btn-login" class="btn btn-primary">Sign in</button>
+      </form>
 
-      <button type="submit" id="btn-login" class="btn btn-primary btn-block">Sign In</button>
-    </form>
+      <form id="register-form" class="auth-form hidden" onsubmit="handleRegister(event)">
+        <div id="register-alert" class="notice hidden"></div>
+        <label class="slip-field"><span>Email</span>
+          <input type="email" id="reg-email" name="email" required autocomplete="email" placeholder="you@example.com">
+        </label>
+        <label class="slip-field"><span>Password</span>
+          <input type="password" id="reg-password" name="password" minlength="8" required autocomplete="new-password" placeholder="8 characters or more">
+        </label>
+        <button type="submit" id="btn-register" class="btn btn-primary">Create account</button>
+      </form>
 
-    <!-- Register Form -->
-    <form id="register-form" class="auth-form hidden" onsubmit="handleRegister(event)">
-      <h2>Create an Account</h2>
-      <p class="subtitle">Start tracking your personal finances intelligently</p>
-
-      <div id="register-alert" class="alert-box hidden"></div>
-
-      <div class="form-group">
-        <label for="reg-email">Email Address</label>
-        <input type="email" id="reg-email" name="email" required autocomplete="email" placeholder="you@example.com">
-      </div>
-
-      <div class="form-group">
-        <label for="reg-password">Password (min 8 characters)</label>
-        <input type="password" id="reg-password" name="password" minlength="8" required autocomplete="new-password" placeholder="••••••••">
-      </div>
-
-      <button type="submit" id="btn-register" class="btn btn-primary btn-block">Create Account</button>
-    </form>
+      <p class="receipt-foot">Keep the receipt. We keep the count</p>
+    </section>
   </div>
-</div>
+</main>
 {% endblock %}
 
 {% block scripts %}
 <script>
   function switchTab(tab) {
-    const loginForm = document.getElementById('login-form');
-    const registerForm = document.getElementById('register-form');
-    const tabLogin = document.getElementById('tab-login');
-    const tabRegister = document.getElementById('tab-register');
-
-    if (tab === 'login') {
-      loginForm.classList.remove('hidden');
-      registerForm.classList.add('hidden');
-      tabLogin.classList.add('active');
-      tabRegister.classList.remove('active');
-    } else {
-      loginForm.classList.add('hidden');
-      registerForm.classList.remove('hidden');
-      tabLogin.classList.remove('active');
-      tabRegister.classList.add('active');
-    }
+    const isLogin = tab === "login";
+    document.getElementById("login-form").classList.toggle("hidden", !isLogin);
+    document.getElementById("register-form").classList.toggle("hidden", isLogin);
+    document.getElementById("tab-login").classList.toggle("active", isLogin);
+    document.getElementById("tab-register").classList.toggle("active", !isLogin);
   }
 
-  // If already logged in, redirect to dashboard
-  document.addEventListener('DOMContentLoaded', () => {
-    if (SpendSmartAuth.getToken()) {
-      window.location.href = '/';
+  document.getElementById("receipt-date").textContent =
+    new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+
+  // The example entries type themselves once, then file into their category.
+  (function typeEntries() {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const lines = [...document.querySelectorAll(".entry-line:not(.total)")];
+    const total = document.querySelector(".entry-line.total");
+    lines.forEach((li) => { li.classList.add("pending"); li.querySelector(".typed").textContent = ""; });
+    total.style.opacity = "0";
+    let i = 0;
+    function next() {
+      if (i >= lines.length) { total.style.transition = "opacity 300ms"; total.style.opacity = "1"; return; }
+      const li = lines[i++];
+      const el = li.querySelector(".typed");
+      const text = el.dataset.text;
+      let n = 0;
+      li.classList.add("typing");
+      const timer = setInterval(() => {
+        el.textContent = text.slice(0, ++n);
+        if (n >= text.length) {
+          clearInterval(timer);
+          li.classList.remove("typing", "pending");
+          setTimeout(next, 360);
+        }
+      }, 45);
     }
+    setTimeout(next, 900); // after the receipt prints
+  })();
+
+  document.addEventListener("DOMContentLoaded", () => {
+    if (SpendSmartAuth.getToken()) window.location.href = "/";
   });
+
+  function showError(el, message) {
+    el.textContent = message;
+    el.className = "notice notice-error";
+  }
 
   async function handleLogin(e) {
     e.preventDefault();
-    const alertEl = document.getElementById('login-alert');
-    alertEl.className = 'alert-box hidden';
-    const email = document.getElementById('login-email').value.trim();
-    const password = document.getElementById('login-password').value;
-
+    const alertEl = document.getElementById("login-alert");
+    alertEl.className = "notice hidden";
+    const email = document.getElementById("login-email").value.trim();
+    const password = document.getElementById("login-password").value;
     try {
       await SpendSmartAuth.login(email, password);
-      window.location.href = '/';
+      window.location.href = "/";
     } catch (err) {
-      alertEl.textContent = err.message || 'Login failed';
-      alertEl.className = 'alert-box alert-error';
+      showError(alertEl, err.message || "Sign in failed");
     }
   }
 
   async function handleRegister(e) {
     e.preventDefault();
-    const alertEl = document.getElementById('register-alert');
-    alertEl.className = 'alert-box hidden';
-    const email = document.getElementById('reg-email').value.trim();
-    const password = document.getElementById('reg-password').value;
-
+    const alertEl = document.getElementById("register-alert");
+    alertEl.className = "notice hidden";
+    const email = document.getElementById("reg-email").value.trim();
+    const password = document.getElementById("reg-password").value;
     try {
       await SpendSmartAuth.register(email, password);
-      // Auto-login after registration
       await SpendSmartAuth.login(email, password);
-      window.location.href = '/';
+      window.location.href = "/";
     } catch (err) {
-      alertEl.textContent = err.message || 'Registration failed';
-      alertEl.className = 'alert-box alert-error';
+      showError(alertEl, err.message || "Could not create the account");
     }
   }
 </script>
