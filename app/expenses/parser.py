@@ -22,8 +22,6 @@ def _parse_amount(token: str) -> Decimal | None:
     except InvalidOperation:
         return None
 
-    if not amount.is_finite() or amount <= 0:
-        return None
     return amount
 
 
@@ -34,6 +32,8 @@ def parse_expense_text(text: str) -> Maybe[ParsedExpense]:
         amount = _parse_amount(tokens[index])
         if amount is None:
             continue
+        if not amount.is_finite() or amount <= 0:
+            return Maybe.nothing()
 
         description = " ".join([*tokens[:index], *tokens[index + 1 :]]).strip()
         if not description:

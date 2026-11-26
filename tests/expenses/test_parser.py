@@ -35,6 +35,8 @@ def test_parse_expense_text_accepts_supported_formats(text, amount, description)
         "Uber",
         "Uber 0",
         "Uber -5",
+        "Uber 12 0",
+        "Uber 12 -5",
         "12.40",
         "Uber NaN",
         "Uber Infinity",
