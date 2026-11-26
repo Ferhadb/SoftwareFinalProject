@@ -72,6 +72,18 @@ def test_create_with_manual_category_sets_manual_source(service, make_user):
     assert expense.occurred_on == date(2026, 11, 20)
 
 
+def test_create_uses_fallback_when_no_strategy_matches(service, make_user):
+    user = make_user()
+
+    expense = service.create(
+        user.id,
+        ExpenseCreateRequest(text="Mystery merchant 3.00"),
+    )
+
+    assert expense.category == Category.OTHER
+    assert expense.category_source == CategorySource.FALLBACK
+
+
 def test_create_rejects_unparseable_text(service, make_user):
     user = make_user()
 

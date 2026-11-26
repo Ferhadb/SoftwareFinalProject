@@ -69,6 +69,20 @@ def test_create_structured_expense_with_manual_category(expense_client, make_use
     assert body["occurred_on"] == "2026-11-20"
 
 
+def test_create_expense_uses_fallback_category(expense_client, make_user):
+    user = make_user()
+
+    response = expense_client.post(
+        "/expenses",
+        json={"text": "Mystery merchant 3.00"},
+        headers=auth_headers(user),
+    )
+
+    assert response.status_code == 201
+    assert response.json()["category"] == "Other"
+    assert response.json()["category_source"] == "fallback"
+
+
 @pytest.mark.parametrize(
     "body",
     [
