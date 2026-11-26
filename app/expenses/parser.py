@@ -1,9 +1,12 @@
 """Pure parsing helpers for the expense text input."""
 
+import re
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 
 from app.core.monads import Maybe
+
+MONEY_PATTERN = re.compile(r"-?\d{1,10}(?:[.,]\d{1,2})?")
 
 
 @dataclass(frozen=True)
@@ -14,7 +17,7 @@ class ParsedExpense:
 
 def _parse_amount(token: str) -> Decimal | None:
     candidate = token.strip().removeprefix("$").removesuffix("$")
-    if not candidate:
+    if MONEY_PATTERN.fullmatch(candidate) is None:
         return None
 
     try:
