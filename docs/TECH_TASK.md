@@ -152,7 +152,7 @@ Use `str` Enum `Category`. `Other` is the fallback.
 | description | str | original text without the amount, e.g. "Uber" |
 | merchant | str null | optional, defaults to description |
 | category | Category | |
-| category_source | enum `rules / ml / llm / manual` | who decided |
+| category_source | enum `rules / ml / llm / manual / fallback` | who decided (`fallback` = nothing matched, saved as Other) |
 | occurred_on | date | defaults to today |
 | created_at | datetime (UTC) | |
 
