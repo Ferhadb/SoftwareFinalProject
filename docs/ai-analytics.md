@@ -40,12 +40,11 @@ The `CATEGORIZER` setting picks what runs: `rules`, `ml`, `llm` or `chain`
 ### The strategies
 
 **Rules.** All keywords are compiled into one regular expression: whole words
-only, case-insensitive, longest keyword first (so "Uber Eats" is Food, not
-Transport). Before matching, `I`, `İ` and `ı` are all turned into `i`, because
-Python lowercases `İ` into two characters and never turns `I` into `ı`. That
-way "AZƏRİŞIQ" and "azərişiq" match the same keyword. Names that differ in
-other letters are listed in both spellings (`azərişıq` and `azerishiq`).
-`Other` has no keywords; it is what's left when nothing matches.
+only, longest keyword first (so "Uber Eats" is Food, not Transport). The
+description is lowercased before matching, so case doesn't matter and the
+matched text is always a known keyword. Local merchants are listed in plain
+Latin spelling (`azerishiq`, `bakikart`). `Other` has no keywords; it is what's
+left when nothing matches.
 
 Rules look at the store, not the item, so "Bravo umbrella" becomes Food. The
 user can correct it by choosing the category, which is saved as `manual`.
@@ -105,7 +104,7 @@ two decimal places and sent as JSON numbers, matching the dashboard's mock data.
 
 `data/seed_expenses.csv` has two columns, `description,category`: at least 200
 rows, at least 15 per category, and only the eight `Category` values. It mixes
-local merchants (Bravo, Araz, Bolt, Wolt, Azercell, Azərişıq, aptek) with
+local merchants (Bravo, Araz, Bolt, Wolt, Azercell, Azerishiq, aptek) with
 international ones (Netflix, Spotify, Uber, Starbucks).
 
 For the ML evaluation the rows are split 80/20, stratified by category, with a
