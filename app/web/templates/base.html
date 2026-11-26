@@ -3,33 +3,62 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{ title or "SpendSmart - Expense Tracker" }}</title>
-  <link rel="stylesheet" href="/static/css/style.css">
+  <title>{{ title or "SpendSmart" }}</title>
+  <script>
+    // Apply the theme before paint so there is no flash.
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem("theme"); } catch (_) {}
+      if (!t) t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="/static/css/style.css?v=7">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
-<body>
-  <header class="navbar">
-    <div class="nav-container">
-      <a href="/" class="brand">
-        <span class="brand-icon">💳</span>
-        <span class="brand-name">SpendSmart</span>
-      </a>
-      <div id="nav-user-area" class="nav-user-area">
-        <!-- populated dynamically by auth.js -->
+<body class="{% block body_class %}{% endblock %}">
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></symbol>
+    <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+  </svg>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a href="/" class="brand"><span class="brand-mark" aria-hidden="true"><span></span></span>SpendSmart</a>
+      <div class="top-actions">
+        <div id="nav-user-area" class="top-actions"></div>
+        <button class="btn btn-ghost btn-icon theme-toggle" type="button" onclick="SpendSmartTheme.toggle()" aria-label="Switch theme" title="Switch theme">
+          <svg class="icon icon-moon"><use href="#i-moon"/></svg>
+          <svg class="icon icon-sun"><use href="#i-sun"/></svg>
+        </button>
       </div>
     </div>
   </header>
 
-  <main class="main-content">
-    {% block content %}{% endblock %}
-  </main>
+  {% block content %}{% endblock %}
 
-  <footer class="footer">
-    <p>SpendSmart &copy; 2026 &mdash; Built with FastAPI &amp; Chart.js</p>
-  </footer>
-
-  <script src="/static/js/api.js"></script>
-  <script src="/static/js/auth.js"></script>
+  <script>
+    const SpendSmartTheme = {
+      get: () => document.documentElement.dataset.theme,
+      toggle() {
+        const next = this.get() === "dark" ? "light" : "dark";
+        document.documentElement.dataset.theme = next;
+        try { localStorage.setItem("theme", next); } catch (_) {}
+        document.dispatchEvent(new CustomEvent("themechange"));
+      },
+    };
+  </script>
+  <script src="/static/js/api.js?v=7"></script>
+  <script src="/static/js/auth.js?v=7"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

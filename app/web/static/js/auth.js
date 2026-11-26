@@ -17,17 +17,19 @@ const SpendSmartAuth = (() => {
 
     try {
       const user = await SpendSmartApi.getMe();
-      navArea.innerHTML = `
-        <span class="user-badge">${escapeHtml(user.email || "user@spendsmart.local")}</span>
-        <button class="btn btn-sm btn-secondary" onclick="SpendSmartAuth.logout()">Sign Out</button>
-      `;
+      navArea.innerHTML = userArea(user.email || "user@spendsmart.local");
     } catch (e) {
       // If error occurs, keep token in dev mode
-      navArea.innerHTML = `
-        <span class="user-badge">demo@spendsmart.local</span>
-        <button class="btn btn-sm btn-secondary" onclick="SpendSmartAuth.logout()">Sign Out</button>
-      `;
+      navArea.innerHTML = userArea("demo@spendsmart.local");
     }
+  }
+
+  function userArea(email) {
+    return `
+      <span class="user-email">${escapeHtml(email)}</span>
+      <button class="btn btn-ghost btn-icon" type="button" onclick="SpendSmartAuth.logout()" aria-label="Sign out" title="Sign out">
+        <svg class="icon"><use href="#i-logout"/></svg>
+      </button>`;
   }
 
   async function login(email, password) {
