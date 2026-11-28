@@ -1,5 +1,6 @@
 """Request and response schemas for budget endpoints."""
 
+from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
@@ -29,3 +30,13 @@ class BudgetStatusResponse(BaseModel):
     spent: Decimal
     percent: Decimal
     level: Literal["ok", "warning", "exceeded"]
+
+
+class AlertResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    category: Category
+    level: Literal[80, 100]
+    month: str
+    created_at: datetime

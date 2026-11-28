@@ -4,16 +4,19 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from app.auth.security import get_current_user
 from app.budgets.schemas import (
+    AlertResponse,
     BudgetResponse,
     BudgetStatusResponse,
     BudgetUpsertRequest,
 )
 from app.budgets.service import (
+    AlertService,
     BudgetNotFoundError,
     BudgetService,
+    get_alert_service,
     get_budget_service,
 )
-from app.models import Budget, Category, User
+from app.models import Alert, Budget, Category, User
 
 router = APIRouter(prefix="/budgets", tags=["Budgets"])
 alerts_router = APIRouter(prefix="/alerts", tags=["Alerts"])
@@ -65,3 +68,11 @@ def delete_budget(
             detail="Budget not found",
         ) from exc
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@alerts_router.get("", response_model=list[AlertResponse])
+def list_alerts(
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[AlertService, Depends(get_alert_service)],
+) -> list[Alert]:
+    return service.list(current_user.id)
