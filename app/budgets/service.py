@@ -19,6 +19,14 @@ class BudgetNotFoundError(Exception):
     pass
 
 
+def has_reached_threshold(
+    spent: Decimal,
+    monthly_limit: Decimal,
+    threshold: int,
+) -> bool:
+    return spent * 100 >= monthly_limit * threshold
+
+
 class BudgetService:
     def __init__(
         self,
@@ -88,9 +96,9 @@ class BudgetService:
     ) -> BudgetStatusResponse:
         spent = self.expenses.total_for_month(user_id, budget.category, month)
         percent = (spent / budget.monthly_limit * 100).quantize(Decimal("0.01"))
-        if percent >= 100:
+        if has_reached_threshold(spent, budget.monthly_limit, 100):
             level = "exceeded"
-        elif percent >= 80:
+        elif has_reached_threshold(spent, budget.monthly_limit, 80):
             level = "warning"
         else:
             level = "ok"
