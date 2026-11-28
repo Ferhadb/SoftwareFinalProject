@@ -114,3 +114,23 @@ def test_status_scopes_spending_by_user_category_and_month(
     assert result[0].spent == Decimal("25.00")
     assert result[0].percent == Decimal("25.00")
     assert result[0].level == "ok"
+
+
+def test_status_does_not_use_rounded_percent_for_level(
+    service,
+    make_user,
+    make_expense,
+):
+    user = make_user()
+    service.upsert(user.id, Category.FOOD, Decimal("1000.06"))
+    make_expense(
+        user,
+        800,
+        category=Category.FOOD,
+        occurred_on=date(2026, 11, 1),
+    )
+
+    result = service.status(user.id, "2026-11")
+
+    assert result[0].percent == Decimal("80.00")
+    assert result[0].level == "ok"

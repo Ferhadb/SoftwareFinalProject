@@ -9,14 +9,23 @@ from typing import Annotated
 from fastapi import Depends
 
 from app.budgets.schemas import BudgetStatusResponse
-from app.models import Budget, Category
-from app.repositories import get_budget_repo, get_expense_repo
+from app.models import Alert, Budget, Category
+from app.repositories import get_alert_repo, get_budget_repo, get_expense_repo
+from app.repositories.alert_repo import AlertRepository
 from app.repositories.budget_repo import BudgetRepository
 from app.repositories.expense_repo import ExpenseRepository
 
 
 class BudgetNotFoundError(Exception):
     pass
+
+
+def has_reached_threshold(
+    spent: Decimal,
+    monthly_limit: Decimal,
+    threshold: int,
+) -> bool:
+    return spent * 100 >= monthly_limit * threshold
 
 
 class BudgetService:
@@ -88,9 +97,9 @@ class BudgetService:
     ) -> BudgetStatusResponse:
         spent = self.expenses.total_for_month(user_id, budget.category, month)
         percent = (spent / budget.monthly_limit * 100).quantize(Decimal("0.01"))
-        if percent >= 100:
+        if has_reached_threshold(spent, budget.monthly_limit, 100):
             level = "exceeded"
-        elif percent >= 80:
+        elif has_reached_threshold(spent, budget.monthly_limit, 80):
             level = "warning"
         else:
             level = "ok"
@@ -108,3 +117,17 @@ def get_budget_service(
     expenses: Annotated[ExpenseRepository, Depends(get_expense_repo)],
 ) -> BudgetService:
     return BudgetService(budgets, expenses)
+
+
+class AlertService:
+    def __init__(self, alerts: AlertRepository) -> None:
+        self.alerts = alerts
+
+    def list(self, user_id: int) -> list[Alert]:
+        return self.alerts.list_for_user(user_id)
+
+
+def get_alert_service(
+    alerts: Annotated[AlertRepository, Depends(get_alert_repo)],
+) -> AlertService:
+    return AlertService(alerts)
