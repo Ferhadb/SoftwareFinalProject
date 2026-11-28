@@ -1,8 +1,11 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Response, status
 
 from app.auth.security import get_current_user
+from app.budgets.observers import register_budget_alert_observer
 from app.budgets.schemas import (
     AlertResponse,
     BudgetResponse,
@@ -18,8 +21,19 @@ from app.budgets.service import (
 )
 from app.models import Alert, Budget, Category, User
 
+
+@asynccontextmanager
+async def alerts_lifespan(_: FastAPI) -> AsyncIterator[None]:
+    register_budget_alert_observer()
+    yield
+
+
 router = APIRouter(prefix="/budgets", tags=["Budgets"])
-alerts_router = APIRouter(prefix="/alerts", tags=["Alerts"])
+alerts_router = APIRouter(
+    prefix="/alerts",
+    tags=["Alerts"],
+    lifespan=alerts_lifespan,
+)
 
 MonthFilter = Annotated[
     str | None,

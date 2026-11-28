@@ -1,16 +1,20 @@
 """Budget alert observer for newly created expenses."""
 
 import logging
+from collections.abc import Callable
 from decimal import Decimal
+from weakref import WeakSet
 
 from app.budgets.service import has_reached_threshold
-from app.core.events import ExpenseCreated
+from app.core.db import SessionLocal
+from app.core.events import EventBus, ExpenseCreated, bus
 from app.models import Alert, Category
 from app.repositories.alert_repo import AlertRepository
 from app.repositories.budget_repo import BudgetRepository
 from app.repositories.expense_repo import ExpenseRepository
 
 log = logging.getLogger(__name__)
+_registered_buses: WeakSet[EventBus] = WeakSet()
 
 
 class BudgetAlertObserver:
@@ -72,3 +76,26 @@ class BudgetAlertObserver:
         if has_reached_threshold(spent, monthly_limit, 80):
             return 80
         return None
+
+
+def handle_expense_created(
+    event: ExpenseCreated,
+    session_factory=SessionLocal,
+) -> None:
+    with session_factory() as db:
+        observer = BudgetAlertObserver(
+            BudgetRepository(db),
+            ExpenseRepository(db),
+            AlertRepository(db),
+        )
+        observer(event)
+
+
+def register_budget_alert_observer(
+    event_bus: EventBus = bus,
+    handler: Callable[[ExpenseCreated], None] = handle_expense_created,
+) -> None:
+    if event_bus in _registered_buses:
+        return
+    event_bus.subscribe(ExpenseCreated, handler)
+    _registered_buses.add(event_bus)
